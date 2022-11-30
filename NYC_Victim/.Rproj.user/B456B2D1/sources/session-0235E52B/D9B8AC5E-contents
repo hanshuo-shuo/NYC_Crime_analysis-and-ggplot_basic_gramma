@@ -1,0 +1,388 @@
+---
+title: "Final Project"
+subtitle: |
+ | visualization
+ | Crimes in New York (STAT 302)
+author: "Shuo Han"
+date: today
+format:
+  html:
+    toc: true
+    embed-resources: true
+    code-fold: show
+    link-external-newwindow: true
+    fig-dpi: 300
+execute:
+  warning: false
+from: markdown+emoji 
+editor_options: 
+  chunk_output_type: console
+---
+
+## load Packages and Data
+
+```{r}
+#| label: package_data
+#| message: false
+#| warning: false
+#load Package
+library(dplyr)
+library(ggplot2)
+library(tidyverse)
+library(patchwork)
+library(cowplot)
+library(ggalluvial)
+library(base)
+#load dateset
+data = read.csv("data/NYPD_Complaint_Data_Historic.csv", na.strings=c("","NA"))
+```
+
+## Data Source
+
+**This is where you can find the data set:**
+
+[NYPD Complaint Data Historic](https://data.cityofnewyork.us/Public-Safety/NYPD-Complaint-Data-Historic/qgea-i56i?ref=hackernoon.com)
+
+> This dataset includes all valid felony, misdemeanor, and violation crimes reported to the New York City Police Department (NYPD) from 2006 to the present. But I want to see what it is like during the past entire year. So I did a little filter on the website to get the date for the year 2021.
+
+## Why do I choose this data set?
+
+As an international student who just moved to the US, I've been shocked and concerned with the number of crimes that are happening on a daily basis in Chicago and in the entire US. At first, I was planning on analyzing the city of Chicago. Later I changed my mind since I have always wanted to go to either work or live in New York. Why don't I just do some analysis of the city of New York?
+
+## Visualization plan
+
+In my Visualization, I'm planning on digging deep into types of crimes and their statistical distributions. I'm also planning on comparing the difference between the past four years, although my focus will be on the year 2021. Afterward, I'm planning on figuring out the relationship between criminals and people, whether crimes will happen in a certain area, and whether night is more dangerous and how much more dangerous.
+
+## Initial data issues
+
+Problems do arise quickly. To start with, I'm pretty successful at downloading the date, even though it contains the date since the year 2006 and the size of the date is too big(My first time dealing with such a big size of date). It took me so much time to open the data with excel, where I spend some time filtering the date that only happened in the year 2021. I have successfully loaded the data into R. After taking a quick glance, I found many missing values and I think I will do a lot of data transformation during my project.
+
+## Misc
+
+Although I'm not planning on working in groups, I do want to have some interesting parts involving plots with interaction like the dashboard, and we will have a lot of discussion after class.
+
+## Missing values Analysis
+
+```{r}
+#| label: plot_miss
+#| echo: false
+
+missing_plot_func <- function(inputdata, option) {
+  mycars = inputdata
+  n_vars = ncol(mycars)
+  n_rows = nrow(mycars)
+  if (option == 'counts') {
+    #create missing pattern
+    missing_patterns <- data.frame(is.na(mycars)) %>%
+      group_by_all() %>%
+      count(name = "count", sort = TRUE) %>%
+      ungroup()
+    n_rows = nrow(missing_patterns)
+    
+    #side plots
+    missing.values <- mycars %>%
+      select(everything()) %>%  # replace to your needs
+      summarise_all(funs(sum(is.na(.)))) %>%
+      gather(key = "key", value = "val") %>%
+      arrange(desc(val))
+    
+    s1 <- missing.values %>%
+      ggplot() +
+      geom_bar(aes(x = reorder(key,-val), y = val), fill = "#f68060", stat = 'identity') +
+      labs(x = 'variable', y = "number of missing values", title = 'Missing value pattern') +
+      theme(axis.text.x = element_text(angle = 45, hjust = 1))
+    
+    missing_patterns_withAP <- missing_patterns
+    selected <-
+      which(apply(missing_patterns[, -length(missing_patterns)], 1, any) == F[1])
+    alpha_vector = rep(1, nrow(missing_patterns_withAP))
+    alpha_vector[selected] = 2
+    missing_patterns_withAP$hl_alpha = alpha_vector
+    
+    missing_patterns_withAP["id"] <- as.factor(seq(1, n_rows))
+    s2_y = fct_reorder(missing_patterns_withAP$id,
+                       as.numeric(missing_patterns_withAP$id),
+                       .desc = TRUE)
+    # s2_y <- factor(s2_y, levels = sort(levels(s2_y), decreasing = TRUE))
+    
+    s2 <- missing_patterns_withAP %>%
+      ggplot() +
+      geom_bar(aes(
+        x = count,
+        fill = "#f68060",
+        s2_y,
+        alpha = hl_alpha
+      ), stat = 'identity') +
+      scale_alpha(range = c(0.45, 1)) +
+      labs(x = 'row count', y = '') +
+      theme(axis.text.x = element_text(angle = 45, hjust = 1),
+            legend.position = "none")
+    missing_patterns_cleaned <- select(missing_patterns, -count)
+    selected <-
+      which(apply(missing_patterns[,-length(missing_patterns)], 1, any) == F[1])
+  }
+  
+  if (option == 'percent') {
+    missing_patterns <-   data.frame(is.na(mycars)) %>%
+      group_by_all() %>%
+      count(name = "count", sort = TRUE) %>%
+      ungroup() %>%
+      mutate(pct = count / nrow(mycars))
+    #side 1 col
+    missing.values <- mycars %>%
+      select(everything()) %>%  # replace to your needs
+      summarise_all(funs(sum(is.na(.)))) %>%
+      gather(key = "key", value = "val") %>%
+      mutate(pct = val / n_rows) %>%
+      arrange(desc(pct))
+    
+    #    print(missing_patterns)
+    n_rows = nrow(missing_patterns)
+    
+    s1 <- missing.values %>%
+      ggplot() +
+      geom_bar(aes(x = reorder(key,-pct), y = pct), fill = "#f68060", stat = 'identity') +
+      labs(x = 'variable', y = "number percentage of missing values", title = 'Missing value pattern') +
+      theme(axis.text.x = element_text(angle = 45, hjust = 1))
+    #side 2 row
+    
+    missing_patterns_withAP <- missing_patterns
+    selected <-
+      which(apply(missing_patterns[1:n_vars], 1, any) == F[1])
+    alpha_vector = rep(1, nrow(missing_patterns_withAP))
+    alpha_vector[selected] = 2
+    missing_patterns_withAP$hl_alpha = alpha_vector
+    
+    missing_patterns_withAP["id"] <- as.factor(seq(1, n_rows))
+    s2_y = fct_reorder(missing_patterns_withAP$id,
+                       as.numeric(missing_patterns_withAP$id),
+                       .desc = TRUE)
+    #  s2_y <- factor(s2_y, levels = sort(levels(s2_y), decreasing = TRUE))
+    
+    s2 <- missing_patterns_withAP %>%
+      ggplot() +
+      geom_bar(aes(
+        x = pct,
+        fill = "#f68060",
+        s2_y,
+        alpha = hl_alpha
+      ), stat = 'identity') +
+      scale_alpha(range = c(0.45, 1)) +
+      labs(x = 'row percentage', y = '') +
+      theme(axis.text.x = element_text(angle = 45, hjust = 1),
+            legend.position = "none")
+    
+    missing_patterns_cleaned <-
+      select(missing_patterns, -c(count, pct))
+    
+    selected <-
+      which(apply(missing_patterns[,-c(length(missing_patterns), length(missing_patterns) -
+                                         1)], 1, any) == F[1])
+    
+  }
+  #create main plot
+  
+  missing_patterns_modified <- missing_patterns_cleaned %>%
+    rownames_to_column("id") %>%
+    gather(key, value, -id) %>%
+    mutate(missing = ifelse(value == 1, 1, 0)) %>%
+    mutate(missing_patterns[id, "count"])
+  
+  missing_patterns_merged <-
+    merge(x = missing.values,
+          y = missing_patterns_modified,
+          by = "key",
+          all = TRUE)
+  
+  y =  fct_reorder(missing_patterns_merged$id,
+                   as.numeric(missing_patterns_merged$id),
+                   .desc = TRUE)
+  #y <- factor(y, levels = sort(levels(y), decreasing = TRUE))
+  
+  #selected <- which(apply(missing_patterns[, -length(missing_patterns)], 1, any) == F[1])
+  alpha_vector = rep(1, nrow(missing_patterns_merged))
+  highlight <-
+    as.vector(which(missing_patterns_merged$id == selected))
+  
+  alpha_vector[highlight] = 2
+  missing_patterns_merged$hl_alpha = alpha_vector
+  
+  main <-
+    ggplot(missing_patterns_merged,
+           aes(
+             x = fct_reorder(key, val, .desc = TRUE),
+             y,
+             fill = as.factor(missing),
+             alpha = hl_alpha
+           )) +
+    geom_tile(color = "white") +
+    scale_fill_manual(values = c("grey", "mediumpurple")) +
+    scale_alpha(range = c(0.45, 1)) +
+    theme_bw() +
+    labs(x = 'variable', y = "missing pattern") +
+    
+    theme(legend.position = "none",
+          axis.text.x = element_text(angle = 45, hjust = 1))
+  
+  
+  #patchwork plot together
+  library(patchwork)
+  (s1 + plot_spacer()) /
+    (main |
+       s2 + plot_spacer()) +  plot_layout(ncol = 1,
+                                          width = c(4, 1),
+                                          heights = unit(c(1, 5), c('cm', 'null')))
+}
+```
+
+> After implementing the self-defined missing value plot function here, the plot is shown as below.
+
+```{r}
+#| label: plot_1
+#| warning: false
+#| fig-width: 30
+#| fig-height: 15
+data_visna = data
+missing_plot_func(data_visna, 'percent')
+```
+
+It easy to see from the plot that the variables below have a large ratio of missing values: - PARKS_NM: Name of NYC park, playground, or greenspace of occurrence, if applicable (state parks are not included). - HADEVELOPT: Name of NYCHA housing development of occurrence, if applicable. - HOUSING_PSA: Development Level Code. - TRANSIT_DISTRICT: Transit district in which the offense occurred. - STATION_NAME: Transit station name
+
+> If we read the definition of these variables, we can understand why there are large proportions missing values in each of them. Also, there are many Left missing variables. But I think they can still be used in the following analysis since the proportion is small and we can ignore the missing part.
+
+## Crime trend every day in year 2021
+
+```{r}
+#| label: Crime_trend
+#| fig-width: 20
+#| fig-height: 8
+ 
+data %>%
+ mutate(hour=sapply(strsplit(CMPLNT_FR_TM, ':'), function(x) as.numeric(x[[1]][1]))) %>%
+ filter(!is.na(BORO_NM)) %>%
+ filter(VIC_SEX %in% c("F", "M")) %>%
+ mutate(n = n(),
+        group_by(hour)) %>% 
+ ggplot() +
+  aes(x = hour, y = n, color = VIC_SEX) +
+  geom_point() +
+  labs(
+    x = "Event happened hour",
+    y = "Case number",
+    title = "The crime daily trend in NYC",
+    subtitle = "stratified by county and sex",
+    fill = "victim sex"
+  ) +
+  theme(
+    title = element_text(size = 25),
+    axis.title.x = element_text(size = 20),
+    axis.title.y = element_text(size = 20)
+  ) + 
+  facet_wrap(vars(BORO_NM), scales = "free_y")
+```
+
+**Conclusion on the trend of daily crime**
+
+> We can see daily trends in crime figures for five regions. On the Y-axis is the crime rate, and on the X-axis is the number of hours in a day. Because I didn't consider the difference in numbers by region, I focused on daily trends. We did find very similar trends across the five counties. The trough occurs between 5 and 7 o 'clock and the peak occurs between 15 and 19 o 'clock. (We excluded the midnight peak because we thought it was an auto-fill of missing values that didn't fit the daily trend.) In addition, we included the gender of the victim in the figure to show more concern for gender differences. Unfortunately, we see that in these five counties, at the same time of day, women are more vulnerable than men. At night, however, from approx. From 22:00 to 5:00, men are just as vulnerable as women. In Staten Island, that conclusion was less pronounced, while in the other four counties, men and women committed nearly the same number of crimes.
+
+## Crime number vs category of crimes among different specific locations.
+
+```{r}
+#| label: Crime number vs category
+#| fig-width: 20
+#| fig-height: 16
+data %>%
+  filter(
+    VIC_AGE_GROUP == '<18' |
+      VIC_AGE_GROUP == '18-24' |
+      VIC_AGE_GROUP == '25-44' |
+      VIC_AGE_GROUP == '45-64' |
+      VIC_AGE_GROUP == '65+'
+  ) %>%
+  filter(!is.na(BORO_NM) & !is.na(OFNS_DESC)) %>%
+  ggplot() +
+  aes(x = OFNS_DESC, fill = VIC_AGE_GROUP) +
+  geom_bar() +
+  scale_fill_hue(direction = 1) +
+  coord_flip() +
+  theme_minimal() +
+  facet_wrap(vars(BORO_NM))
+```
+
+**Conclusion on the crime number vs category of crimes among different specific locations**
+
+> The incidences of harassment are outstandingly high among all types of crimes, with that assault and petit larceny being the next highest. All these three types of crimes are not severe and are still a big part of social problems now in 2021. Another group that is outstanding is the 25-44 age group, with the largest number of victims among all the age groups. In addition, it can also be easily seen that Staten Island has the lowest incidents among all types of crimes.
+
+## Visualization about portraits of suspects and victims
+
+```{r}
+#| label: portraits of suspects and victims
+#| fig-width: 20
+#| fig-height: 16
+#| warning: false
+#| message: false
+
+# form the date for Visualization
+data_alluvial <- data %>%
+  group_by(SUSP_AGE_GROUP,
+           SUSP_RACE,
+           SUSP_SEX,
+           VIC_AGE_GROUP,
+           VIC_RACE,
+           VIC_SEX) %>%
+  summarise(count = n()) %>%
+  filter(count > 10) %>%
+  filter(SUSP_AGE_GROUP != 'UNKNOWN') %>%
+  filter(SUSP_RACE != 'UNKNOWN') %>%
+  filter(SUSP_SEX != 'UNKNOWN' &
+           SUSP_SEX != 'D' & SUSP_SEX != 'E' & SUSP_SEX != 'U') %>%
+  filter(VIC_AGE_GROUP != 'UNKNOWN') %>%
+  filter(VIC_RACE != 'UNKNOWN') %>%
+  filter(VIC_SEX != 'UNKNOWN' & VIC_SEX != 'D' & VIC_SEX != 'E' & VIC_SEX != 'U' )
+
+# Plot
+ggplot(
+  as.data.frame(data_alluvial),
+  aes(
+    y = count,
+    axis1 = SUSP_SEX,
+    axis2 = SUSP_RACE,
+    axis3 = SUSP_AGE_GROUP,
+    axis4 = VIC_SEX,
+    axis5 = VIC_RACE,
+    axis6 = VIC_AGE_GROUP
+  )
+) +
+  scale_x_discrete(
+    limits = c(
+      "suspect sex",
+      "suspect race",
+      "suspect age group",
+      "victim sex",
+      "victim race",
+      "victim age group"
+    ),
+    expand = c(.1, .05)
+  ) +
+  geom_alluvium(aes(fill = VIC_SEX), width = 1 / 12) +
+  geom_stratum(width = 1 / 12,
+               fill = "grey80",
+               color = "grey20") +
+  geom_label(stat = "stratum",
+             aes(label = after_stat(stratum))) +
+  labs(y = "distribution", x = "crime category", fill = 'victim sex') +
+  scale_fill_brewer(type = "qual", palette = "Set1") +
+  ggtitle(
+    "Suspects and Victims' portraits in NYC",
+    "stratified by sex, race, and age group. (left three are suspects and right three are victims)"
+  ) +
+  theme(
+    title = element_text(size = 25),
+    axis.title.x = element_text(size = 20),
+    axis.title.y = element_text(size = 20)
+  )
+```
+
+**Conclusion on the visualization about portraits of suspects and victims**
+
+> We want to see the portrait of suspects and victims of all crimes in recent three years. By alluvium, we focus on the victim sex, denoted by different colors, as well as the other information related to one crime event. From the graph above, we can have a direct understanding that crimes in NYC happen to women more than men and as for the suspect number, the number of male suspects is 3 times of women. In addition, it is not hard to see that in male and female suspects, their targets both focus more on women. Certainly, there is no gender opposition in crimes, but we do see women are always the vulnerable group. 😡😡😡**STOP WOMEN'S VIOLENCE!** 😡😡😡More help and guards should be paid to women. We have understood that there is a specific age structure in the whole population and we do not gather related information, but we do see that in NYC, compared between victims and suspects, old people aged from 45 to 64 are more vulnerable.
