@@ -1,0 +1,173 @@
+---
+title: "Introduction to {ggplot2}"
+subtitle: "Data Visualization (STAT 302)"
+author: "YOUR NAME"
+
+format:
+  html:
+    toc: true
+    embed-resources: true
+    code-fold: true
+    link-external-newwindow: true
+    fig-dpi: 300
+    fig-align: center
+
+execute:
+  echo: false
+  warning: false
+
+from: markdown+emoji 
+---
+
+## Overview
+
+This activity is meant to pull together all the data visualization skills and knowledge we have built using `ggplot2` over the last several weeks. Ideally, students should feel comfortable with being able to build the **Level Up Bar Plot**. While the **Advanced Bar Plot** might not be immediately attainable, students should have the foundation knowledge to be able to figure out how to build it. We cannot teach you everything, but we hope to have prepared you to be able to learn and grow on your own.
+
+### Citation
+
+This activity was adapted from a workshop given by Tanya Shapiro.
+
+## Load pacakges and data 
+
+The data we're using today is from [**The Movie Database**](https://www.themoviedb.org/) and contains information on over 35K **Horror Movies** from the 1950s until today 😱
+
+```{r}
+#| label: load-pkgs-data
+
+# load packages
+library(tidyverse)
+library(ggimage)
+library(sysfonts)
+library(showtext)
+
+# load fonts
+font_add_google("Roboto","Roboto")
+font_add_google("Creepster","Creepster")
+
+# load data
+raw <- read_csv("data/horror_movies.csv")
+
+# to automatically render fonts, use showtext_auto()
+showtext::showtext_auto()
+```
+
+
+
+### Quick Clean-Up
+
+We'll use **dplyr** to make a few tweaks, namely to modify existing columns and add a couple of new ones with `mutate`. To learn more about dplyr, check out this slick [cheatsheet](https://www.rstudio.com/wp-content/uploads/2015/02/data-wrangling-cheatsheet.pdf) by RStuido.
+
+🧹 To-Dos:
+
+-   Express *budget* and *revenue* in millions
+-   Convert *release_date* from char to date
+-   Create *release_year* and *release_month*
+-   Append *poster_path* to themoviedb url to create a *poster_url*
+
+```{r}
+#| label: data-cleanup
+
+# url for poster images, need this to concatenate with poster path
+base_url <- 'https://www.themoviedb.org/t/p/w1280'
+
+# build basic dataset
+df <- raw %>% 
+  mutate(
+    budget = budget/1000000,
+    revenue = revenue/1000000,
+    #convert release date from char to date
+    release_date = as.Date(release_date),
+    #truncate date on year and month
+    release_year = as.numeric(format(release_date, '%Y')),
+    release_month = as.numeric(format(release_date, '%m')),
+    #concatenate base url with poster path to get poster url
+    poster_url = paste0(base_url,poster_path)
+   )
+```
+
+## Bar Plot
+
+Visualize the top 10 horror movies by revenue.
+
+### Pre-Plotting
+
+To rank our data set in descending order by revenue, we can use dplyr `arrange()`. We'll simplify and pick the columns we need for plotting with `select()`. 
+
+```{r}
+#| label: bar-plot-data
+
+# get top movies based on revenue
+df_top_movies<- df %>% 
+  #arrange data in descending order revenue
+  arrange(-revenue) %>% 
+  #select specific columns
+  select(title, release_year, revenue, budget, poster_url) %>% 
+  #select first 10 rows
+  slice_head(n = 10)
+```
+
+### Basic Bar Plot
+
+```{r}
+#| label: basic-bar-plot
+#| fig-width: 8
+#| fig-height: 8
+
+# plot horizontal bar chart, add plot labels
+ggplot(data = df_top_movies, mapping = aes(y = title, x = revenue)) +
+  geom_col() +
+  labs(
+    x = "Revenue (millions)",
+    y = NULL,
+    title = "Horror Movies That Killed The Box Office",
+    subtitle = "Top horror movies based on total revenue."
+  )
+```
+
+### Level Up Bar Plot
+
+```{r}
+#| label: interm-bar-plot
+#| fig-width: 8
+#| fig-height: 8
+
+# set some palette colors
+pal_bar <- "#A70000" # fill for bars
+pal_bg <- '#191919' # background
+pal_text <- "white" # text color
+pal_subtext <- "#DFDFDF" # text color
+pal_grid <- "grey30" # grid color
+
+# build plot
+ggplot(
+  data = df_top_movies,
+  mapping = aes(y = reorder(title, revenue), x = revenue)
+)+
+  geom_col(fill = pal_bar)+
+  labs(
+    x = "Revenue (millions)",
+    y = NULL,
+    title = "Horror Movies That killed the Box Office",
+    subtitle = "Top horror movies based on total revenue"
+  )+
+  theme(
+    panel.background = element_rect(fill = pal_bg),
+    plot.background = element_rect(fill = pal_bg),
+    axis.text = element_text(color = pal_text),
+    axis.ticks = element_blank(),
+    plot.title = element_text(color = pal_text),
+    plot.subtitle = element_text(color = pal_text),
+    panel.grid = element_blank(),
+    panel.grid.major.x = element_line(color = pal_grid)
+  )
+```
+
+### Advanced Bar Plot
+
+```{r}
+#| label: adv-bar-plot
+#| fig-width: 8
+#| fig-height: 8
+
+# build plot
+```

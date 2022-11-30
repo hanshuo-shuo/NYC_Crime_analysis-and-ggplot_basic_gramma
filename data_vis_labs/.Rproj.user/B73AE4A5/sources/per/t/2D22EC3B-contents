@@ -1,0 +1,367 @@
+---
+title: "L09 Themes"
+subtitle: "Data Visualization (STAT 302)" 
+author: "Shuo Han"
+format:
+  html:
+    toc: true
+    embed-resources: true
+    code-fold: show
+    link-external-newwindow: true
+    fig-dpi: 300
+execute:
+  warning: false
+from: markdown+emoji 
+editor_options: 
+  chunk_output_type: console
+---
+
+## Overview
+
+The goal of this lab is to play around with the theme options in `ggplot2`.
+
+
+## Datasets
+
+We'll be using the `cdc.txt` and `NU_admission_data.csv` datasets.
+
+```{r}
+#| label: load-pkgs-data
+#| message: false
+# load package(s)
+library(tidyverse)
+library(gridExtra)
+library(patchwork)
+# load font
+extrafont::loadfonts(device = "all")
+
+# read in the cdc dataset
+cdc <- read_delim(file = "data/cdc.txt", delim = "|") %>%
+  mutate(
+    genhlth = factor(
+      genhlth,
+      levels = c("excellent", "very good", "good", "fair", "poor"),
+      labels = c("Excellent", "Very Good", "Good", "Fair", "Poor")
+      )
+    )
+
+# read in NU admission data
+nu_data = read_csv("data/NU_admission_data.csv") %>% 
+ janitor::clean_names()
+
+# set seed
+set.seed(2468)
+
+# selecting a random subset of size 100
+cdc_small <- cdc %>% 
+  slice_sample(n = 100)
+```
+
+## Exercise 1
+
+Use the `cdc_small` dataset to explore several pre-set `ggthemes`. The code below constructs the familiar scatterplot of `weight` by `height` and stores it in `plot_01`. Display `plot_01` to observe the default theme. **Explore/apply, and display at least 7 other pre-set themes** from the `ggplot2` or `ggthemes` package. Don't worry about making adjustments to the figures under the new themes. Just get a sense of what the themes are doing to the original figure `plot_01`. 
+
+There should be at least 8 plots for this task, `plot_01` is pictured below. Use `patchwork` or `cowplot` in combination with R yaml chunk options `fig-height` and `fig-width` (`out-width` and `fig-align` may be useful as well) to setup the 8 plots together in a user friendly arrangement. 
+
+<br>
+
+```{r}
+#| label: ex-1-base-plot 
+#| echo: true
+
+# plot
+plot_01 <- ggplot(
+  data = cdc_small,
+  aes(x = height, y = weight)
+) +
+  geom_point(size = 3, aes(shape = genhlth, color = genhlth)) +
+  scale_y_continuous(
+    name = "Weight in Pounds",
+    limits = c(100, 275),
+    breaks = seq(100, 275, 25),
+    trans = "log10",
+    labels = scales::label_number(
+      accuracy = 1,
+      suffix = " lbs"
+    )
+  ) +
+  scale_x_continuous(
+    name = "Height in Inches",
+    limits = c(60, 80),
+    breaks = seq(60, 80, 5),
+    labels = scales::label_number(accuracy = 1, suffix = " in")
+  ) +
+  scale_shape_manual(
+    name = "Health?",
+    labels = c(
+      "Excellent", "Very Good",
+      "Good", "Fair", "Poor"
+    ),
+    values = c(17, 19, 15, 9, 4)
+  ) +
+  scale_color_brewer(
+    name = "Health?",
+    labels = c(
+      "Excellent", "Very Good",
+      "Good", "Fair", "Poor"
+    ),
+    palette = "Set1"
+  ) +
+  theme(
+    legend.position = c(1, 0),
+    legend.justification = c(1, 0)
+  ) +
+  labs(title = "CDC BRFSS: Weight by Height")
+```
+
+```{r}
+legend_theme <- function(...){
+  theme(
+    legend.position = c(1, 0),
+    legend.justification = c(1, 0)
+  )
+}
+p1 <- plot_01 + ggtitle("Plot 1: Base") + legend_theme()
+p2 <- plot_01 + theme_bw() + ggtitle("Plot 2: theme_bw") + legend_theme()
+p3 <- plot_01 + theme_linedraw() + ggtitle("Plot 3: theme_linedraw") + legend_theme()
+p4 <- plot_01 + theme_light() + ggtitle("Plot 4: theme_light") + legend_theme()
+p5 <- plot_01 + theme_minimal() + ggtitle("Plot 5: theme_minimal") + legend_theme()
+p6 <- plot_01 + theme_classic() + ggtitle("Plot 6: theme_classic") + legend_theme()
+p7 <- plot_01 + theme_dark() + ggtitle("Plot 7: theme_dark") + legend_theme()
+p8 <- plot_01 + theme_void() + ggtitle("Plot 8: theme_void") + legend_theme()
+```
+
+
+```{r}
+#| warning: false
+#| fig-width: 10
+#| fig-height: 20
+p1 + p2 + p3 + p4 + p5 + p6 + p7 + p8 +
+  plot_layout(nrow = 4, byrow = FALSE)
+```
+
+:::{.callout-important}
+**Which theme or themes do you particularly like? Why?**
+:::
+
+**Answer:**
+>I like theme classic most. Because not only it has a clear theme without any blocks, but also has clear x axis and y axis.
+
+## Exercise 2
+
+Using `plot_01` from Exercise 1 and the `theme()` function, attempt to construct the ugliest plot possible (example pictured below). Be creative! It should NOT look exactly like the example. Since the goal is to understand a variety of adjustments, you should use a **minimum** of 10 different manual adjustments within `theme()`.
+```{r}
+plot_01 + 
+    theme(
+      legend.position = c(1, 0), 
+      legend.justification = c(1, 0), 
+      axis.title = element_text(color="blue", face = "bold"), 
+      axis.text = element_text(color = "green", angle = -90), 
+      axis.ticks.length = unit(1, "in"), 
+      panel.grid.major = element_line(color = "black", size = .5),
+      panel.grid.minor = element_line(color="yellow", size = 4, linetype="dotted"), 
+      panel.background = element_rect(fill="blue"), 
+      plot.background = element_rect(color="darkgreen", fill="purple", size = 10), 
+      plot.subtitle = element_text(size = 20, family="serif", face="italic"),
+      legend.background = element_rect(fill="lemonchiffon", color="grey50", size = 1, linetype="dashed"))
+```
+
+## Exercise 3
+
+We will be making use of your code from Exercise 3 from *L07 Layers*. Using the `NU_admission_data.csv` you created two separate plots derived from the single plot depicted in `undergraduate-admissions-statistics.pdf`. Style these plots so they follow a "Northwestern" theme. You are welcome to display the plots separately OR design a layout that displays both together (likely one stacked above the other). 
+
+Check out the following webpages to help create your Northwestern theme:
+
+- [Visual Identity](https://www.northwestern.edu/brand/visual-identity/index.html)
+- [Color Palettes](https://www.northwestern.edu/brand/visual-identity/color-palettes/index.html)
+- [Fonts & Typography](https://www.northwestern.edu/brand/visual-identity/fonts-typography/index.html) --- Need to use [substitute fonts](https://www.northwestern.edu/brand/visual-identity/fonts-typography/substitute-fonts/index.html)
+
+**Additional requirement:**
+
+Use a free non-standard font from google for the title. Pick one that looks similar to a Northwestern font.
+```{r}
+#| label: ex-4 bar
+#| fig-height: 4
+#| fig-width: 9
+
+# bar plot data
+bar_data = nu_data %>% 
+  select(-contains("_rate")) %>% 
+  pivot_longer(
+    cols = -year,
+    names_to = "category",
+    values_to = "count"
+  )
+#bar label data
+bar_label_data = bar_data %>% 
+  mutate(
+    col_label = prettyNum(count, big.mark = ",")
+  )
+# build plot
+# bar_plot
+
+(nu_bar_plot = ggplot(data = bar_data, aes(x = year, y = count))+
+  geom_col(aes(fill = category), 
+           position = "identity",
+           width = 0.7)+
+  geom_text(
+    data = bar_label_data,
+    mapping = aes(label = col_label),
+    size = 1.5,
+    color = "white",
+    vjust = 1,
+    nudge_y = -200
+  )+
+  scale_x_continuous(
+                     name = "Entering Year",
+                     breaks = 1999:2020,
+                     expand = c(0,0.25))+
+  scale_y_continuous(name = "Applications",
+                     expand = c(0,0),
+                     limits = c(0,50000),
+                     labels = scales::label_comma(),
+                     breaks = seq(0, 50000, 5000))+
+  scale_fill_manual(
+    name = NULL,
+    limits = c("applications", "admitted_students", "matriculants"),
+    labels = c("Applications", "Admitted Students", "Matriculants"),
+    values = c("#B6ACD1", "#836EAA", "#4E2A84")
+  )+
+  theme_classic()+
+  theme(
+    strip.text.x = element_text(family ="Georgia", face = "bold", size=13),
+    legend.justification = c(0.5,1),
+    legend.position = c(0.5,1),
+    legend.direction = "horizontal",
+    plot.title = element_text(family = "Georgia", color = "#716C6B", hjust = 0.5, size = 15)
+  )+
+  ggtitle("Northwestern University\nUndergraduate Admissions 1999-2020")
+)
+#ggsave("nu_bar_plot.pdf", bar_plot, width = 9, height = 4)
+```
+
+```{r}
+#| label: line-plot
+#| fig-height: 4
+#| fig-width: 9
+
+## bulid line chart
+rate_data = nu_data %>% 
+  select(year, contains("_rate")) %>% 
+  pivot_longer(
+    cols = -year,
+    names_to = "category",
+    values_to = "value"
+  ) %>% 
+  mutate(
+    rate_labels = paste0(value, "%"),
+    label_y = case_when(
+      category == "admission_rate" ~ value - 2,
+      category == "yield_rate" ~ value + 2
+    )
+  )
+
+#bulid plot
+(nu_rate_plot = ggplot(data = rate_data, 
+                       aes(x = year, y = value))+
+  geom_line(aes(color = category))+
+  geom_point(
+    mapping = aes(shape = category, fill = category),
+    color = "white")+
+  geom_text(
+    mapping = aes(y = label_y, label = rate_labels),
+    size = 2
+  )+
+  scale_x_continuous(name = "Entering Year",
+                     breaks = 1999:2020,
+                     expand = c(0, 0.35))+
+  scale_y_continuous(name = NULL,
+                     expand = c(0, 0),
+                     limits = c(0, 70),
+                     labels = scales::label_percent(scale = 1),
+                     breaks = seq(0, 70, 10))+
+  scale_color_discrete(
+    name = NULL,
+    labels = c("Admission Rate", "Yield Rate")
+  )+
+  scale_shape_manual(
+    labels = c("Admission Rate", "Yield Rate"),
+    name = NULL,
+    values = c(21, 24)
+  )+
+  scale_fill_discrete(name = NULL,
+                      labels = c("Admission Rate", "Yield Rate"))+
+  theme_classic()+
+  theme(
+    legend.justification = c(0.5,1),
+    legend.position = c(0.5,1),
+    legend.direction = "horizontal",
+    plot.title = element_text(family = "serif", color = "#716C6B", hjust = 0.5, size = 15),
+    legend.background = element_rect(color="#4E2A84", size = 1, linetype="dashed")
+  )+
+  ggtitle("Northwestern University\nUndergraduate Admissions 1999-2020")
+)
+```
+
+```{r}
+#| label: graphic
+#| fig-height: 8
+#| fig-width: 14
+# graphic
+nu_bar_plot / (nu_rate_plot + ggtitle(NULL))
+```
+
+:::{.callout-note}
+I find this [blog post](https://cran.rstudio.com/web/packages/showtext/vignettes/introduction.html) to be extremely useful for adding fonts. Important packages for using non-standard fonts are `showtext`, `extrafont`, `extrafontdb`, and `sysfonts`. The last 3 generally just need to be installed (not loaded per session).
+:::
+
+## Challenge
+
+Using `cdc_small` dataset, re-create your own version inspired by the plot below.
+
+**Must haves:**
+
+-   Use two non-standard fonts (one for labeling the point and the other for the axes)
+-   Use at least two colors (one for the added point, another for the rest of the points)
+-   A curved arrow used to label the point
+
+Using Bilbo Baggins' responses below to the CDC BRSFF questions, add Bilbo's data point to a scatterplot of `weight` by `height`.
+
+-   `genhlth` - How would you rate your general health? **fair**
+-   `exerany` - Have you exercised in the past month? **1=yes**
+-   `hlthplan` - Do you have some form of health coverage? **0=no**
+-   `smoke100` - Have you smoked at least 100 cigarettes in your life time? **1=yes**
+-   `height` - height in inches: **46**
+-   `weight` - weight in pounds: **120**
+-   `wtdesire` - weight desired in pounds: **120**
+-   `age` - in years: **45**
+-   `gender` - m for males and f for females: **m**
+
+
+:::{.callout-note}
+Adding non-standard fonts can be an ***adventure***. I find this [blog post](https://cran.rstudio.com/web/packages/showtext/vignettes/introduction.html) to be extremely useful for adding fonts. Important packages for using non-standard fonts are `showtext`, `extrafont`, `extrafontdb`, and `sysfonts`. The last 3 generally just need to be installed (not loaded per session).
+:::
+
+*Hint:* 
+
+- Create a new dataset (maybe call it `bilbo` or `bilbo_baggins`) using either `data.frame()` (base R - example in book) or `tibble()` (tidyverse - see help documentation for the function). Make sure to use variable names that exactly match `cdc`'s variable names. We have provided the `tidyverse` approach.
+- Search google fonts to find some free fonts to use (can get free fonts from other locations)
+
+```{r}
+#| label: challenge
+#| eval: false
+
+# build dataset for Bilbo Baggins
+bilbo <- tibble(
+  genhlth  = "fair",
+  exerany  = 1,
+  hlthplan = 0,
+  smoke100 = 1,
+  height   = 46,
+  weight   = 120,
+  wtdesire = 120,
+  age      = 45,
+  gender   = "m"
+)
+```
+

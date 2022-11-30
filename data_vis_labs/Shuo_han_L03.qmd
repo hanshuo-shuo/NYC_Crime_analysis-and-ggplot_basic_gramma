@@ -1,0 +1,208 @@
+---
+title: "L03 ggplot II"
+subtitle: "Data Visualization (STAT 302)" 
+author: "Shuo Han"
+format:
+  html:
+    toc: true
+    self-contained: true
+execute: 
+  warning: false
+editor_options: 
+  chunk_output_type: console
+---
+
+
+
+## Overview
+
+The goal of this lab is to continue the process of unlocking the power of `ggplot2` through constructing and experimenting with a few basic plots.
+
+## Datasets
+
+We will be using the BRFSS survey which was introduced in the last lab. The data was supplied in `cdc.txt` file and should be in your `/data` subdirectory. If not, you need to download the last lab to get this data file. As a reminder, the dataset contains 20,000 complete observations/records of 9 variables/fields, described below.
+
+* `genhlth` - How would you rate your general health? (excellent, very good, good, fair, poor)
+* `exerany` - Have you exercised in the past month? (`1 = yes`, `0 = no`) 
+* `hlthplan` - Do you have some form of health coverage? (`1 = yes`, `0 = no`) 
+* `smoke100` - Have you smoked at least 100 cigarettes in your life time? (`1 = yes`, `0 = no`) 
+* `height` -  height in inches
+* `weight` - weight in pounds
+* `wtdesire` - weight desired in pounds
+* `age` - in years
+* `gender` - `m` for males and `f` for females
+
+```{r}
+# Load package(s) 
+library(tidyverse)
+library(dplyr)
+library(forcats)
+# Data
+cdc = read.table("data/cdc.txt",sep = "|", header=TRUE)
+```
+
+## Exercise 1
+
+Using the `cdc` dataset, we want to look at the relationship between height and weight. Recreate the following graphics as precisely as possible.
+
+<br>
+
+### Plot 1
+
+*Hints:*
+
+- Transparency is 0.2
+- Minimal theme
+
+```{r}
+#| lable: plot1
+#| message: false
+#| warning: false
+ggplot(cdc, aes(height, weight,color = gender)) + 
+  geom_point(alpha=0.2) + 
+  geom_smooth(method = lm, fullrange= TRUE)+
+  labs(
+    x = "Height(in)",
+    y = "Weight(lbs)"
+  )+
+  theme_minimal()
+```
+
+<br>
+
+### Plot 2
+
+*Hints:*
+
+- size = 0.7
+```{r}
+ggplot(cdc, aes(height, weight,color = gender)) + 
+  geom_density_2d(size = 0.7)+
+  labs(
+    x = "Height(in)",
+    y = "Weight(lbs)"
+  )+
+  theme_minimal()
+```
+
+
+<br>
+
+### Plot 3
+
+*Hints:*
+
+- `bins` set to 35
+```{r}
+ggplot(cdc, aes(height, weight)) + 
+  geom_hex(bins = 35)+
+  labs(
+    x = "Height(in)",
+    y = "Weight(lbs)"
+  )+
+  theme_minimal()
+```
+
+
+<br>
+
+### Plot 4
+
+*Hints:*
+
+- use a stat layer, not a geom layer
+- `geom = "polygon"` 
+```{r}
+ggplot(cdc,aes(x = height, y = weight)) +
+stat_density2d(aes(fill = ..level..),geom = "polygon",show.legend = FALSE) +
+facet_wrap(~ gender) +
+labs(
+x = "Height (in)",
+y = "Weight (lbs)"
+) +
+theme_minimal()
+```
+
+
+<br>
+
+## Exercise 2
+
+Using the `cdc_means` dataset derived from the `cdc` dataset, recreate the following graphic as precisely as possible.
+
+*Hints:*
+
+- Hex color code `#56B4E9`
+- 95% confidence intervals (1.96 or `qnorm(0.975)`)
+- Some useful values: 0.1, 0.7
+```{r}
+# data wrangling
+# calc mean and se for CI
+cdc_means <- cdc %>%
+  mutate(wtloss = weight - wtdesire) %>%
+  group_by(genhlth) %>%
+  summarize(
+    mean = mean(wtloss),
+    se = sd(wtloss) / sqrt(n())
+  ) %>%
+  mutate(genhlth = fct_reorder(factor(genhlth), desc(mean))) 
+
+
+```
+
+```{r}
+
+ggplot(cdc_means,aes(genhlth, mean))+
+  geom_col(fill = "#56B4E9", width = 0.7)+
+  geom_errorbar(aes(ymin = mean - se*qnorm(0.975),
+                    ymax = mean + se*qnorm(0.975)), width = 0.1)+
+ theme_minimal()+
+ labs(
+   x = "General Health",
+   y = "Mean desired weight loss in lbs"
+ )
+```
+
+<br>
+
+
+<br>
+
+## Exercise 3
+
+Using the `cdc_weight_95ci` dataset derived from the `cdc` dataset, recreate the following graphic as precisely as possible.
+
+*Hints:*
+
+- Useful values: 0.1, 0.5
+- Need to know CI formula
+
+```{r}
+#| label: ex-3-plot
+
+# data wrangling
+# calculate mean, se, and margin of error for CI formula
+cdc_weight_95ci <- cdc %>%
+  mutate(
+    genhlth = factor(genhlth, levels = c("excellent","very good","good","fair","poor"))
+  ) %>% 
+  group_by(genhlth, gender) %>%
+  summarise(
+    mean_wt = mean(weight),
+    se = sd(weight) / sqrt(n()),
+    moe = qt(0.975, n() - 1) * se
+  ) %>% 
+  ungroup()
+```
+
+```{r}
+
+ggplot(cdc_weight_95ci,aes(mean_wt, gender, color = genhlth))+
+  geom_errorbar(aes(xmin = mean_wt - moe,
+                    xmax = mean_wt + moe),width = 0.1, position = position_dodge(0.5))+
+  geom_point(position = position_dodge(0.5))+
+  theme_minimal()+
+    labs(
+    x= "Weight(lbs)",
+    y = "Gender")
+```

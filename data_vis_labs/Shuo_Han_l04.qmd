@@ -1,0 +1,194 @@
+---
+title: "L04 Maps"
+subtitle: "Data Visualization (STAT 302)" 
+author: "Shuo Han"
+format:
+  html:
+    
+    toc: true
+    embed-resources: true
+    code-fold: show
+    link-external-newwindow: true
+execute:
+  warning: false
+from: markdown+emoji 
+editor_options: 
+  chunk_output_type: console
+---
+
+
+## Overview
+
+The goal of this lab is to explore various ways of building maps with `ggplot2`.
+
+Challenges are not mandatory for students to complete. We highly recommend students attempt them though. *We would expect graduate students to attempt the challenges.*
+
+## Datasets
+
+We'll be using the `US_income.rda` dataset which should be placed in the `/data` subdirectory in our **data_vis_labs** project. You'll also be downloading your own data to build maps.
+
+```{r} 
+#| label: load-packages
+
+library(tidyverse)
+library(maps)
+library(rgdal)
+library(mapproj)
+library(rgeos)
+library(geodata)
+library(sf)
+library(viridis)
+library(statebins)
+library(tidycensus)
+library(tigris)
+library(mapview)
+library(raster)
+# Load data-sets
+load(file = "data/US_income.rda")
+```
+
+## Exercise 1
+
+### Plot 1
+
+Make a county map of a US state using `geom_polygon()`. Maybe use your home state or a favorite state. Please do NOT use the state in the ggplot2 book example. 
+
+Optional: Consider adding major cities (or your home town).
+
+*Hints:*
+
+-   See section [6.1](https://ggplot2-book.org/maps.html#polygonmaps) in our book.
+-   Void theme
+```{r}
+#the best state in the union 
+ca <- map_data("county", "california") %>% 
+  dplyr::select(long, lat, group, id = subregion)
+
+ggplot(ca, aes(x = long, y = lat)) +
+#add title
+  ggtitle("California") +
+  geom_polygon(aes(group = group), fill = "white" , color = "grey35") +
+  coord_quickmap() +
+  theme_void()
+```
+
+
+
+### Plot 2
+
+Now use `geom_sf()` instead. You'll need to download data for this. You can use either the `tigris` ([github page](https://github.com/walkerke/tigris)) or `geodata` packages. Either `tigris`' `counties()` with `cb = TRUE` or `geodata`'s `gadm()` could be useful.
+
+```{r}
+#| message: false
+#| warning: false
+il_data = tigris::counties(state = "IL", cb = TRUE, progress_bar = FALSE)
+
+ggplot(data = il_data) + 
+  geom_sf(fill = "white") +
+  ggtitle("IL")+
+  theme_void()
+```
+
+## Exercise 2
+
+Using the `US_income` dataset, recreate the following graphics as precisely as possible.
+
+```{r}
+#| label: ex-2-data-wrangle
+
+# Setting income levels
+US_income <- mutate(
+  US_income,
+  income_bins = cut(
+    ifelse(is.na(median_income), 25000, median_income),
+    breaks = c(0, 40000, 50000, 60000, 70000, 80000),
+    labels = c("< $40k", "$40k to $50k", 
+               "$50k to $60k", "$60k to $70k", "> $70k"),
+    right = FALSE
+  )
+)
+```
+
+### Plot 1
+
+*Hints:*
+
+-   `geom_sf()` --- boundary color is `"grey80"` and size is 0.2
+-   `viridis` package (`discrete = TRUE` in `scale_*` function)
+-   Void theme
+```{r}
+ggplot(US_income) +
+#specify geometry shape to be used 
+  geom_sf(aes(geometry = geometry, fill = income_bins),
+          color = "grey80",
+          size = 0.2) +
+  viridis::scale_fill_viridis(discrete = TRUE, 
+                              name = "Median\nIncome") +
+#helps size correctly 
+  coord_sf() +
+#shows just the plotted features 
+  theme_void()
+```
+
+### Plot 2
+
+*Hints:*
+
+-   `statebins::geom_statebins()`
+-   `viridis` package (`discrete = TRUE` in `scale_*` function)
+-   Statebins theme
+```{r}
+ggplot(US_income, aes(state = name, fill = income_bins)) +
+  geom_statebins() +
+#scale color fill to viridis color pallet 
+  viridis::scale_fill_viridis(
+#change to continous scale
+      discrete = TRUE,
+#change legend name
+      name = "Median\nIncome") +
+  theme_statebins()
+```
+
+## Exercise 3
+
+Pick any city or foreign country to build a map for. You can dress it up or make it as basic as you want. Also welcome to try building a graphic like that depicted at the end of section [6.5](https://ggplot2-book.org/maps.html#rastermaps) --- use a different region though.
+```{r}
+state_level_map <- raster::getData("GADM", 
+                                   country = "France", 
+                                   level = 2) %>%
+  st_as_sf() %>%
+  filter(NAME_1 == "Auvergne-Rhône-Alpes")
+
+ggplot() +
+  geom_sf(data = state_level_map) +
+  labs(title = "Auvergne-Rhône-Alpes, France") +
+  coord_sf() +
+  theme_void() 
+```
+
+## Challenge(s)
+
+Using the `tidycensus` package and few others, try to create a map like below using [these directions](https://walkerke.github.io/tidycensus/articles/spatial-data.html). Try using a different geographical area and a different variable from the ACS.
+```{r}
+#GET CENSUS KEY
+#install census key; ONLY NEED TO DO THIS ONCE 
+census_api_key("14a0a9fdbf4c3b987cab4d1241bbef1494bb245d", install = TRUE, overwrite = TRUE)
+```
+
+
+
+```{r}
+#| include: false
+#| code-fold: show
+ny <- get_acs(geography = "tract", 
+              variables = "B19013_001", # household median income
+              state = "NY", 
+              county = "New York", 
+              geometry = TRUE, 
+              cb = FALSE)
+```
+
+```{r}
+mapview(ny,zcol = "estimate", legend = TRUE, lwd = 0.2)
+```
+

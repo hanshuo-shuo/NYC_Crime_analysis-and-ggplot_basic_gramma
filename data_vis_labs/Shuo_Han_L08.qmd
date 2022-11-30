@@ -1,0 +1,169 @@
+---
+title: "L08 Coords"
+subtitle: "Data Visualization (STAT 302)" 
+author: "Shuo Han"
+format:
+  html:
+    toc: true
+    embed-resources: true
+    code-fold: show
+    link-external-newwindow: true
+    fig-dpi: 300
+execute:
+  warning: false
+from: markdown+emoji 
+editor_options: 
+  chunk_output_type: console
+---
+
+## Overview
+
+The goal of this lab is the use of an alternative coordinate system in `ggplot2` to build a plot. 
+
+## Datasets
+
+We'll be using the `mod_nba2014_15_advanced.txt` dataset --- add to your project's `/data` subdirectory. The `codebook_mod_nba2014_15_advanced.txt` provides a quick description of the variables in the dataset --- suggest adding it to the `/data` subdirectory as well. 
+
+```{r}
+#| label: load-pkgs-data
+#| message: false
+
+# load package(s)
+library(tidyverse)
+# load data
+nba_dat = read_delim("data/mod_nba2014_15_advanced.txt", delim = "|") %>% 
+  janitor::clean_names()
+```
+
+## Exercise 
+
+<!-- See the html instructions since they are complete with images and are the official instructions. -->
+
+Using the `mod_nba2014_15.txt` dataset we will try to recreate/approximate the plot type featured in the [http://fivethirtyeight.com/](fivethirtyeight.com) article [Kawhi Leonard Is The Most Well-Rounded Elite Shooter Since Larry Bird](http://fivethirtyeight.com/features/kawhi-leonard-is-the-most-well-rounded-elite-shooter-since-larry-bird/) for any player of your choice for the 2014-2015 season. 
+
+**Replicate the graphic below as closely as possible:**
+
+### Start with data wrangling
+
+When data wrangling we will need a helper function for creating the quartiles for players. Additionally, it will be useful to exclude players that played less than 10 games or played less than 5 minutes a game. That is, we only want to include "qualified" players.
+
+```{r}
+#| label: helper-function
+
+# Returns quartile rank
+quartile_rank <- function(x = 0:99) {
+  # Set quartile
+  quart_breaks <- c(
+    -Inf,
+    quantile(x,
+      probs = c(.25, .5, .75),
+      na.rm = TRUE
+    ),
+    Inf
+  )
+  cut(x = x, breaks = quart_breaks, labels = FALSE)
+}
+```
+
+:::{.callout-important}
+**Add comments to** the code below where indicated. The added comments should concisely describe what the following line(s) of code do in the data wrangling process  
+:::
+
+```{r}
+#| label: data-wrangling
+# Graphical data
+nba_graph_dat <- nba_dat %>% 
+  # Remove the player who behaved badly
+  filter(g >= 10, mp / g >= 5) %>% 
+  # Use function quartile rank to get the quartile rank
+  # for 4 variables
+  mutate(
+    ts_quant = quartile_rank(ts_perc),
+    trb_quant = quartile_rank(trb_perc),
+    dbpm_quant = quartile_rank(dbpm),
+    ast_quant = quartile_rank(ast_perc),
+    usg_quant = quartile_rank(usg_perc)
+  ) %>% 
+  # Only keep the _quant variable for graphing
+  select(player, contains("_quant")) %>% 
+  # Group the data by players, _quant and quant levels
+  pivot_longer(
+    cols = -player, 
+    names_to = "variable", 
+    values_to = "value"
+    ) %>% 
+  # Sort the date by players names
+  arrange(player)
+```
+
+### Build the plot
+
+*Hints:*
+
+- Image width is 8 in, height is 10 in --- use code chunck yaml
+- center the image output --- use code chunck yaml
+- shrink size down for display to 50% width --- use code chunck yaml
+- All added text, except title, is done with `annotate()`
+- set `axis.text` to blank in theme
+- size 3 and 5 could be useful
+
+```{r}
+#| label: Base_plot
+#| fig-align: "center"
+#| fig-width: 8
+#| fig-height: 10
+#| out-width: "50%"
+
+# id player for chart
+player_name = "LeBron James"
+# build plot
+nba_graph_dat %>%
+  filter(player == "LeBron James") %>%
+  ggplot(aes(x = variable, y = value)) +
+  geom_col(width = 1, fill = "#F07786") +
+  # placing dotted lines
+  geom_hline(yintercept = 1:4, linetype = "dotted") +
+  geom_segment(x = 0.5:4.5, y = 0, xend = 0.5:4.5, yend = 4) +
+  scale_x_discrete(
+    name = NULL,
+    expand = c(0, 0),
+    limits = c("ts_quant", "usg_quant", "dbpm_quant", "trb_quant", "ast_quant")
+  ) +
+  scale_y_continuous(
+    name = NULL,
+    expand = c(0, 0)
+  ) +
+  theme(
+    axis.text = element_blank()
+  ) +
+ggtitle(str_c(player_name, "(2015)", sep = "\n"))+
+  # sector labels
+  annotate(
+    geom = "text", 
+    label = c(
+      "TRUE\nSHOOTING", "USAGE\nRATE", 
+      "DEFENSIVE\nBPM", "REBOUND\nRATE",
+      "ASSIST\nRATE"
+      ),
+    x = 1:5,
+    y = 5,
+    size = 5
+  ) +
+  annotate(
+    geom = "text",
+    x = 3, y = 0.7:3.7, 
+    label = c("1st-25th", "25th-50th", "50th-75th", "75th-99th"),
+    size = 3) +
+  coord_polar() +
+  theme(
+        axis.text = element_blank(), 
+        panel.grid = element_blank())
+```
+
+## Challenge
+
+<!-- See the html instructions since they are complete with images and are the official instructions. -->
+
+**Challenge is optional for all students, but we recommend trying them out!** 
+
+Continue the work of trying to recreate the graphic from the article. There is a pre built theme from `ggthemes` that might be useful. Your final plot should look as follows:

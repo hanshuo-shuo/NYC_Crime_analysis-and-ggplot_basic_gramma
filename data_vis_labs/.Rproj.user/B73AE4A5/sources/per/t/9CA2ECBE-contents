@@ -1,0 +1,327 @@
+---
+title: "L07 Layers"
+subtitle: "Data Visualization (STAT 302)" 
+author: "Shuo Han"
+format:
+  html:
+    toc: true
+    embed-resources: true
+    code-fold: show
+    link-external-newwindow: true
+    fig-dpi: 300
+execute:
+  warning: false
+from: markdown+emoji 
+editor_options: 
+  chunk_output_type: console
+---
+
+## Overview
+
+The goal of this lab is to explore more plots in `ggplot2` and continue to leverage the use of various layers to build complex and well annotated plots. 
+
+## Datasets
+
+We'll be using the `tech_stocks.rda` dataset which is already in the `/data` subdirectory in our **data_vis_labs** project. 
+
+We have a new dataset, `NU_admission_data.csv`, which will need to be downloaded and added to our `/data` subdirectory. 
+
+We will also be using the `mpg` dataset which comes packaged with `ggplot2` --- use `?ggplot2::mpg` to access its codebook.
+
+```{r}
+#| label: load-pkgs-data
+
+# load package(s)
+library(tidyverse)
+library(dplyr)
+library(janitor)
+library(lubridate)
+library(patchwork)
+# load datasets
+nu_data = read_csv("data/NU_admission_data.csv") %>% 
+ janitor::clean_names()
+load("data/tech_stocks.rda")
+mgp = ggplot2::mpg %>% 
+  janitor::clean_names()
+```
+
+## Exercise 1
+
+Using `mpg` and the `class_dat` dataset created below, recreate the following graphic as precisely as possible in two different ways.
+
+*Hints:*
+
+- Transparency is 0.6
+- Horizontal spread is 0.1
+- Larger points are 5
+- Larger points are "red"
+
+```{r}
+#| label: ex-1
+
+# additional dataset for plot
+class_dat <- mpg %>%
+  group_by(class) %>%
+  summarise(
+    n = n(),
+    mean_hwy = mean(hwy),
+    label = str_c("n = ", n, sep = "")
+  )
+```
+
+### Plot 1 -- using `mean_hwy`
+```{r}
+ggplot(mpg, aes(class, hwy)) + 
+  geom_jitter(width = 0.1)+
+  geom_point(data = class_dat,
+             aes(class, mean_hwy),
+             size = 5,
+             color = "red",
+             alpha = 0.6)+
+  geom_text(data = class_dat,
+            mapping = aes(label = label,y = 10),
+            vjust = "inward")+
+  theme_minimal()+
+  labs(
+      x = "Vehicle Class",
+      y = "Highway miles per gallon"
+  )
+```
+
+
+
+### Plot 2 -- not using `mean_hwy`
+
+```{r}
+ggplot(mpg, aes(class, hwy)) + 
+  geom_jitter(width = 0.1)+
+  geom_point(stat = "summary", 
+             fun = "mean", 
+             colour = "red", 
+             size = 5, 
+             alpha = 0.6)+
+  geom_text(data = class_dat,
+            mapping = aes(label = label, y = 10),
+            vjust = "inward")+
+  theme_minimal()+
+  labs(
+      x = "Vehicle Class",
+      y = "Highway miles per gallon"
+  )
+```
+
+
+## Exercise 2
+
+Using the `perc_increase` dataset derived from the `tech_stocks` dataset, recreate the following graphic as precisely as possible.
+
+*Hints:*
+
+- Hex color code `#56B4E9`
+- Justification of 1.1
+- Size is 5
+
+```{r}
+#| label: ex-2
+# percentage increase data
+perc_increase <- tech_stocks %>%
+  arrange(desc(date)) %>%
+  distinct(company, .keep_all = TRUE) %>%
+  mutate(
+    perc = 100 * (price - index_price) / index_price,
+    label = str_c(round(perc), "%", sep = ""),
+    company = fct_reorder(factor(company), perc)
+  )
+```
+
+```{r}
+ggplot(perc_increase, aes(x = perc, y = company)) + 
+  geom_col(
+           aes(y = company), 
+           fill = "#56B4E9"
+           )+
+  geom_text(
+            mapping = aes(label = label),
+            hjust = 1.1,
+            color = "white",
+            size = 5
+            )+
+  scale_x_continuous(
+    expand = c(0, 0)
+  )+
+  labs(
+    x = NULL,
+    y = NULL
+  )+
+  theme_minimal()+
+  theme(
+    axis.ticks = element_blank()
+  )
+```
+
+<br>
+
+## Exercise 3
+
+:::{.callout-warning}
+
+## Warning --- see video
+
+Some thoughtful data wrangling will be needed and it will be demonstrated in class --- **Do not expect a video**.
+
+:::
+
+Using `NU_admission_data.csv` create two separate plots derived from the single plot depicted in `undergraduate-admissions-statistics.pdf` --- this visual and data has been collected from [https://www.adminplan.northwestern.edu/ir/data-book/](https://www.adminplan.northwestern.edu/ir/data-book/). They overlaid two plots on one another by using dual y-axes. 
+
+Create **two separate plots** that display the same information instead of trying to put it all in one single plot --- **stack them** using `patchwork` or `cowplot`. 
+
+<br>
+
+There is one major error they make with the bars in their graphic. **Explain what it is.**
+
+**Answer:**Something wrong with the bars that the bar and the data are not matched.
+
+<br>
+
+Which approach do you find communicates the information better, their single dual y-axes plot or the two separate plot approach? **Why?**
+
+**Answer:** I think they both have advantages. Although putting two graphs together can summary more information with limited spaces, I like putting them in separate plots. Because if I just want to focus on the admission rate versus yield rate, my judgement won't be bothered by the bar plot.
+<br>
+
+*Hints:*
+
+- Form 4 datasets (helps you get organized, but not entirely necessary): 
+    - 1 that has bar chart data, 
+    - 1 that has bar chart label data, 
+    - 1 that has line chart data, and 
+    - 1 that has line chart labels 
+- Consider using `ggsave()` to save the image with a fixed size so you it is easier to pick font sizes.
+```{r}
+#| label: ex-4 bar
+#| fig-height: 4
+#| fig-width: 9
+
+# bar plot data
+bar_data = nu_data %>% 
+  select(-contains("_rate")) %>% 
+  pivot_longer(
+    cols = -year,
+    names_to = "category",
+    values_to = "count"
+  )
+#bar label data
+bar_label_data = bar_data %>% 
+  mutate(
+    col_label = prettyNum(count, big.mark = ",")
+  )
+# build plot
+# bar_plot
+
+(nu_bar_plot = ggplot(data = bar_data, aes(x = year, y = count))+
+  geom_col(aes(fill = category), 
+           position = "identity",
+           width = 0.7)+
+  geom_text(
+    data = bar_label_data,
+    mapping = aes(label = col_label),
+    size = 1.5,
+    color = "white",
+    vjust = 1,
+    nudge_y = -200
+  )+
+  scale_x_continuous(name = "Entering Year",
+                     breaks = 1999:2020,
+                     expand = c(0,0.25))+
+  scale_y_continuous(name = "Applications",
+                     expand = c(0,0),
+                     limits = c(0,50000),
+                     labels = scales::label_comma(),
+                     breaks = seq(0, 50000, 5000))+
+  scale_fill_manual(
+    name = NULL,
+    limits = c("applications", "admitted_students", "matriculants"),
+    labels = c("Applications", "Admitted Students", "Matriculants"),
+    values = c("#B6ACD1", "#836EAA", "#4E2A84")
+  )+
+  theme_classic()+
+  theme(
+    legend.justification = c(0.5,1),
+    legend.position = c(0.5,1),
+    legend.direction = "horizontal",
+    plot.title = element_text(hjust = 0.5)
+  )+
+  ggtitle("Northwestern University\nUndergraduate Admissions 1999-2020")
+)
+#ggsave("nu_bar_plot.pdf", bar_plot, width = 9, height = 4)
+```
+
+```{r}
+#| label: line-plot
+#| fig-height: 4
+#| fig-width: 9
+
+## bulid line chart
+rate_data = nu_data %>% 
+  select(year, contains("_rate")) %>% 
+  pivot_longer(
+    cols = -year,
+    names_to = "category",
+    values_to = "value"
+  ) %>% 
+  mutate(
+    rate_labels = paste0(value, "%"),
+    label_y = case_when(
+      category == "admission_rate" ~ value - 2,
+      category == "yield_rate" ~ value + 2
+    )
+  )
+
+#bulid plot
+(nu_rate_plot = ggplot(data = rate_data, 
+                       aes(x = year, y = value))+
+  geom_line(aes(color = category))+
+  geom_point(
+    mapping = aes(shape = category, fill = category),
+    color = "white")+
+  geom_text(
+    mapping = aes(y = label_y, label = rate_labels),
+    size = 2
+  )+
+  scale_x_continuous(name = "Entering Year",
+                     breaks = 1999:2020,
+                     expand = c(0, 0.35))+
+  scale_y_continuous(name = NULL,
+                     expand = c(0, 0),
+                     limits = c(0, 70),
+                     labels = scales::label_percent(scale = 1),
+                     breaks = seq(0, 70, 10))+
+  scale_color_discrete(
+    name = NULL,
+    labels = c("Admission Rate", "Yield Rate")
+  )+
+  scale_shape_manual(
+    labels = c("Admission Rate", "Yield Rate"),
+    name = NULL,
+    values = c(21, 24)
+  )+
+  scale_fill_discrete(name = NULL,
+                      labels = c("Admission Rate", "Yield Rate"))+
+  theme_classic()+
+  theme(
+    legend.justification = c(0.5,1),
+    legend.position = c(0.5,1),
+    legend.direction = "horizontal",
+    plot.title = element_text(hjust = 0.5)
+  )+
+  ggtitle("Northwestern University\nUndergraduate Admissions 1999-2020")
+)
+```
+
+```{r}
+#| label: graphic
+#| fig-height: 8
+#| fig-width: 14
+# graphic
+nu_rate_plot / (nu_bar_plot + ggtitle(NULL))
+```
+

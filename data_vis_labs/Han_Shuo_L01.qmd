@@ -1,0 +1,225 @@
+---
+title: "L01 Introduction"
+subtitle: "Data Visualization (STAT 302)" 
+author: "Han Shuo"
+format:
+  html:
+    toc: true
+    self-contained: true
+from: markdown+emoji
+editor_options: 
+  chunk_output_type: console
+---
+
+## load packages and datasets
+
+```{r}
+#| label: load-packages
+#| message: false
+
+# Load package(s) 
+library(tidyverse)
+library(dplyr)
+library(forcats)
+# Data
+load("data/legosets.rda")
+```
+
+### Task 1 --Complete :grin:
+
+Download and install [R Software](https://cran.rstudio.com/). <br>
+
+### Task 2 --Complete :grin:
+
+1.  Download and install [RStudio](https://www.rstudio.com/products/rstudio/download4/).
+2.  Open RStudio and ensure it and R have been properly installed.
+3.  Go to **Tools** \> **Global Options** and change the two indicated settings below and click **Apply**. Your other options are likely different than what is pictured. This is okay and we suggest you leave them as is until you become more familiar with RStudio.
+
+<br>
+
+### Task 3 --Complete :grin:
+
+Take some time to explore the [Quarto](https://quarto.org/) and [ggplot2](https://ggplot2.tidyverse.org/index.html) websites. We suggest bookmarking them because they will be extremely useful references.
+
+We highly recommend reading through the [Tutorial: Hello, Quarto](https://quarto.org/docs/get-started/hello/rstudio.html).
+
+<br>
+
+### Task 4 --Complete :grin:
+
+Install the following packages:
+
+-   `tidyverse`
+-   `skimr`
+-   `devtools`
+
+<br>
+
+### Task 5 --Complete :grin:
+
+1.  Download `L01_introduction.zip` from Canvas.
+2.  Unzip the file and place the `data_vis_labs` directory where you would like to keep all of your lab work for this course.
+3.  Open RStudio and create a project folder for this *existing directory*.
+4.  Rename `template_L01.qmd` to your `Lastname_Firstname_L01.qmd`
+5.  Render the file with `Cmd/Ctrl + Shift + K` or click the Render button. <br>
+
+### Task 6 (optional) --Complete :grin:
+
+If you are new to RStudio we strongly recommend reading through Chapters 1-4 of the [Stat 202 text book](https://nustat.github.io/intro-stat-data-sci/)
+
+<br>
+
+## Exercise 1 :heavy_check_mark:
+
+Let's delve into why data visualizations are important.
+
+### Visualization 1
+
+Read the following article and answer the following questions.
+
+[bars_vs_grocery_stores](https://flowingdata.com/2014/05/29/bars-versus-grocery-stores-around-the-world/)
+
+1)  List one thing you learned from the article?
+
+**ANSWER--** **I understand the information in the graph can be understood in different ways. For example, in the article, the author said higher rates don't necessarily point to higher volumes of drinking. Such message is make the article more rigorous.**
+
+2)  How did the main visualization (United States) enhance the article?
+
+**ANSWER--** **It uses different color to illustrate the information. The more bars, the darker the brown and the more grocery stores, the darker the green. It also gives us an overview of the entire country and provides us with the special example in Wisconsin.**
+
+3)  List at least one thing you liked about the \[United States\] graphic and one thing you think could be improved.
+
+**ANSWER--** **I like the part that different level of the color can quantitatively represent the relationship between the number of bars and the grocery stores. I think it will be better to make the graph in more detailed way in terms of states: the graph can show the outlines of different states so it will be easier to tell where that place is.**
+
+<br>
+
+### Visualization 2
+
+Open this [dashboard](https://edgarruiz.shinyapps.io/db-dashboard/) and answer the following questions.
+
+1)  What story is this dashboard telling and how do the visualizations enhance that?
+
+**ANSWER--** **Average Flights per day, Top 10 Destination Airports, Number of Flights and Flights delayed monthly and yearly.**
+
+2)  What might a dashboard provide that a static graphic cannot.
+
+**ANSWER--** **The dashboard tend to tell more stories. And it can meet requirement in more cases. Like this one allows me to figure out the detail in each month.**
+
+<br>
+
+## Exercise 2 :heavy_check_mark:
+
+Let's look at some interesting patterns in the history of LEGO! We'll be using data from the [`lego` package](https://github.com/seankross/lego) located `data/legosets.rda`.
+
+First, let's look at the average cost of LEGO sets over time. The main variable of interest here is `USD_MSRP`, or the manufacturer's suggested retail price in constant dollars.
+
+```{r}
+#| lable: msrp-time
+#| message: false
+#| warning: false
+# data wrangling
+lego_average=legosets %>% 
+  group_by(Year) %>% 
+  summarize(avg_price = mean(USD_MSRP, na.rm = TRUE))
+
+ggplot(data = lego_average, mapping = aes(x = Year, y = avg_price))+
+  geom_line()+
+  geom_point(color = "red")+
+  labs(x="Years",
+       y="price USD",
+       title ="Average Price of LEGO sets",
+       subtitle = "Amount are reported in current USD",
+       caption = "Source : LEGO"
+       )+ 
+   theme_minimal()
+```
+
+<br>
+
+## Exercise 3 :heavy_check_mark:
+
+Let's explore how many unique themes LEGO now offers.
+
+```{r}
+#| label: themes
+#| message: false
+#| warning: false
+
+theme_counts <- legosets %>%
+  count(Theme)
+
+theme_counts %>%
+  ggplot(aes(y = Theme, x = n)) +
+  geom_col() +    # or geom_bar(stat = "identity") +
+  labs(
+    title = "Messy Plot",
+    x = "Number of Sets",
+    y = NULL
+  ) +
+  theme_minimal()
+```
+
+What is bad/ugly about the plot above?
+
+**ANSWER--** **There are too much information and it's hard to read the detail.**
+
+Now remake the plot BUT with the improvements.
+
+```{r}
+#| label: improved-graph
+#| message: false
+#| warning: false
+theme_counts <- legosets %>%
+  count(Theme, sort = TRUE) %>% 
+  mutate(
+    Theme = fct_inorder(Theme, ordered=TRUE)
+  )
+
+  
+theme_counts %>%
+  filter(n>=100) %>% 
+  ggplot(aes(y = fct_rev(Theme), x = n)) +
+  geom_col() +    # or geom_bar(stat = "identity") +
+  labs(
+    x = "Number of Sets",
+    y = NULL,
+    title = 'Improved plot'
+  ) +
+  theme_minimal()
+```
+
+<br>
+
+## Exercise 4 :heavy_check_mark:
+
+Now you try, let's look at how the number of pieces per set has changed over time. Because Duplo sets are much smaller (since they're designed for toddlers), we made a special indicator variable for them shown in the code below.
+
+Use an appropriate graph to plot the average number of pieces over time. Have either separate lines or separate plots for the Duplo and Lego categories. Be sure the title, x-axis, and y-axis are properly labeled.
+
+```{r}
+#| label: Piece
+#| message: false
+#| warning: false
+pieces_per_year <- legosets %>%
+  # new indicator variable
+  mutate(Duplo = ifelse(Theme == "Duplo", "Duplo", "Lego")) %>%
+  group_by(Year,Duplo) %>% 
+  summarise(avg_piece = mean(Pieces, na.rm = TRUE))
+
+ggplot(data = pieces_per_year, mapping = aes(x = Year, y = avg_piece))+
+  geom_line()+
+  facet_wrap(~Duplo)+
+  geom_point(color = "red")+
+  labs(x="Years",
+       y="Pieces",
+       title ="Average Pieces of LEGO sets",
+       subtitle = "Amount are reported in current USD",
+       caption = "Source : LEGO"
+       )+ 
+   theme_minimal()
+
+```
+
+What trends do you notice in the plots? Are you surprised by the plots?
+
+**ANSWER--** **I noticed that after the year 1975, both groups have the trend of going upward.That's not a surprising result, and I have the same prediction after year 2020.**
