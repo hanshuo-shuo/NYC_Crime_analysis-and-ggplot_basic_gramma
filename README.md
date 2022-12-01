@@ -1,4 +1,4 @@
-# STAT 302
+
 ## NYC Victim and Crime analysis
 ### Dataset
 
@@ -9,4 +9,10 @@ I want to see what it is like during the past entire year. So I did a little fil
 
 
 ## ggplot2 basic gramma through labs
+### Textbooks (Free Online)
+- [Elegant Graphics for Data Analysis](https://ggplot2-book.org/index.html)
+- [Fundamentals of Data Visualization](https://clauswilke.com/dataviz/)
 
+### Software 
+- Download and install the most recent versions of [R](https://cran.rstudio.com/)  and [RStudio](https://posit.co/download/rstudio-desktop/#download)
+- Must download a new version of RStudio because it includes [Quarto](https://quarto.org/)
